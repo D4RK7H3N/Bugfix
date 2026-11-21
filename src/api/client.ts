@@ -33,6 +33,10 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     headers,
     credentials: "include",
   });
+  const contentType = response.headers.get("content-type") ?? "";
+  if (!contentType.includes("application/json")) {
+    throw new Error(`API returned non-JSON (${response.status}). Check VITE_API_URL.`);
+  }
   if (!response.ok) {
     let detail = `Request failed (${response.status})`;
     try {
