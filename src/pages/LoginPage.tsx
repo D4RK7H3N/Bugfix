@@ -13,7 +13,9 @@ export function LoginPage() {
   const login = useMutation({
     mutationFn: async () => {
       await api.auth.csrf();
-      return api.auth.login(username, password);
+      const me = await api.auth.login(username, password);
+      await api.auth.csrf();
+      return me;
     },
     onSuccess: (me) => {
       client.setQueryData(["me"], me);

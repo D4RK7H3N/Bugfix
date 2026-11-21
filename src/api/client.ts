@@ -13,12 +13,15 @@ import type {
 const configured = (import.meta.env.VITE_API_URL ?? "").trim();
 const BASE = (configured || "https://bugfixer.darkzhub.asia").replace(/\/$/, "");
 
-function csrfToken(): string {
-  for (const part of document.cookie.split(";")) {
-    const [name, ...rest] = part.trim().split("=");
-    if (name === "csrftoken") return decodeURIComponent(rest.join("="));
-  }
-  return "";
+let csrfToken = "";
+
+async function ensureCsrf(): Promise<string> {
+  if (csrfToken) return csrfToken;
+  const response = await fetch(`${BASE}/api/dashboard/auth/csrf/`, { credentials: "include" });
+  if (!response.ok) throw new Error(`Could not get CSRF token (${response.status})`);
+  const data = (await response.json()) as { csrfToken?: string };
+  csrfToken = data.csrfToken ?? "";
+  return csrfToken;
 }
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
@@ -26,7 +29,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers);
   if (init.body && !(init.body instanceof FormData)) headers.set("Content-Type", "application/json");
   if (["POST", "PATCH", "PUT", "DELETE"].includes(method)) {
-    headers.set("X-CSRFToken", csrfToken());
+    headers.set("X-CSRFToken", await ensureCsrf());
   }
   const response = await fetch(`${BASE}/api/dashboard${path}`, {
     ...init,
@@ -70,7 +73,11 @@ export interface ReportFilters {
 
 export const api = {
   auth: {
-    csrf: () => request<{ detail: string }>("/auth/csrf/"),
+    csrf: async () => {
+      csrfToken = "";
+      const token = await ensureCsrf();
+      return { detail: "ok", csrfToken: token };
+    },
     login: (username: string, password: string) =>
       request<Me>("/auth/login/", { method: "POST", body: jsonBody({ username, password }) }),
     logout: () => request<{ detail: string }>("/auth/logout/", { method: "POST" }),
