@@ -10,7 +10,8 @@ import type {
   Stats,
 } from "./types";
 
-const BASE = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "");
+const configured = (import.meta.env.VITE_API_URL ?? "").trim();
+const BASE = (configured || "https://bugfixer.darkzhub.asia").replace(/\/$/, "");
 
 function csrfToken(): string {
   for (const part of document.cookie.split(";")) {
